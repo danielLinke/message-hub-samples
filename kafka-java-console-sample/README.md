@@ -10,10 +10,14 @@ To build and run the sample, you must have the following installed:
 * [git](https://git-scm.com/)
 * [Gradle](https://gradle.org/)
 * Java 7+
-* [Message Hub Service Instance](https://console.ng.bluemix.net/catalog/services/message-hub/) provisioned in [IBM Bluemix](https://console.ng.bluemix.net/)
+* [Message Hub Service Instance](https://console.ng.bluemix.net/catalog/services/message-hub/) provisioned in [IBM Bluemix](https://console.ng.bluemix.net/)   
+* [Satori Account](https://www.satori.com/overview?campaign_tier1_value=796993629&campaign_tier2_value=39564681977&campaign_tier3_value=189629472439&cp_value1=kwd-29418120&cp_name2=e&device=c&cp_name1=search&partner=google_search&utm_source=google&utm_medium=cpc&gclid=CjwKEAjw-LLKBRCdhqmwtYmX93kSJAAORDM69HDEjnu4U5K1Fm6M65yxqOPTXNvZxlVzURGuz1tNsRoC7Vfw_wcB)
 
 ## Prerequisites (Bluemix)
 * [Cloud Foundry Command Line Interface](https://github.com/cloudfoundry/cli/releases) installed
+
+## Prerequisites (Satori)
+* Edit the satori properties in the file `resources/satori.properties`. The file contains the `endpoint`, `channel` and your individual `appkey` 
 
 ## Running the Build Script
 Run the following commands on your local machine, after the prerequisites for your environment have been completed:
