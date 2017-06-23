@@ -19,6 +19,11 @@
  */
 package com.messagehub.samples;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
@@ -32,19 +37,28 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import com.messagehub.samples.satori.SatoriClient;
+import com.messagehub.samples.satori.SatoriConst;
+import com.satori.rtm.RtmClient;
+import com.satori.rtm.model.AnyJson;
+
 
 public class ProducerRunnable implements Runnable {
     private static final Logger logger = Logger.getLogger(ProducerRunnable.class);
 
     private final KafkaProducer<String, String> kafkaProducer;
+    private final Properties satoriProperties;
     private final String topic;
     private volatile boolean closing = false;
 
-    public ProducerRunnable(Properties producerProperties, String topic) {
+    public ProducerRunnable(Properties producerProperties, String topic) throws FileNotFoundException, IOException {
         this.topic = topic;
 
         // Create a Kafka producer with the provided client configuration
         kafkaProducer = new KafkaProducer<String, String>(producerProperties);
+        
+        satoriProperties = new Properties();
+        satoriProperties.load(new FileReader(new File("resources/satori.properties")));
         
         try {
             // Checking for topic existence.
@@ -63,45 +77,55 @@ public class ProducerRunnable implements Runnable {
     @Override
     public void run() {
         // Simple counter for messages sent
-        int producedMessages = 0;
         logger.log(Level.INFO, ProducerRunnable.class.toString() + " is starting.");
-
-        try {
+   	 	             
+        try {    	
+        	RtmClient client = SatoriClient.createClient(satoriProperties.getProperty(SatoriConst.ENDPOINT), satoriProperties.getProperty(SatoriConst.APPKEY));  
+        	       	
             while (!closing) {
-                String key = "key";
-                String message = "This is a test message #" + producedMessages;
+                
+            	//Get messages from Satori API
+            	SatoriClient.getMessages(client, satoriProperties.getProperty(SatoriConst.CHANNEL));
+            	 	
+            	String key = "key";
+                //String message = "This is a test message #" + producedMessages;
 
-                try {
-                    // If a partition is not specified, the client will use the default partitioner to choose one.
-                    ProducerRecord<String, String> record = new ProducerRecord<String, String>(
-                            topic,key,message);
-                    
-                    // Send record asynchronously
-                    Future<RecordMetadata> future = kafkaProducer.send(record);
-                    
-                    // Synchronously wait for a response from Message Hub / Kafka on every message produced.
-                    // For high throughput the future should be handled asynchronously.
-                    RecordMetadata recordMetadata = future.get(5000, TimeUnit.MILLISECONDS);
-                    producedMessages++;
+                
+                for(Iterator<AnyJson> iter = MessageHubConsoleSample.messages.iterator(); iter.hasNext(); ){
+                	 AnyJson element = iter.next();
+                     
+                	 try {
+                         // If a partition is not specified, the client will use the default partitioner to choose one.
+                         ProducerRecord<String, String> record = new ProducerRecord<String, String>(
+                                 topic, key, element.toString());
+                         
+                         // Send record asynchronously
+                         Future<RecordMetadata> future = kafkaProducer.send(record);
+                         
+                         // Synchronously wait for a response from Message Hub / Kafka on every message produced.
+                         // For high throughput the future should be handled asynchronously.
+                         RecordMetadata recordMetadata = future.get(5000, TimeUnit.MILLISECONDS);
 
-                    logger.log(Level.INFO, "Message produced, offset: " + recordMetadata.offset());
-
-                    // Short sleep for flow control in this sample app
-                    // to make the output easily understandable
-                    Thread.sleep(2000); 
-
-                } catch (final InterruptedException e) {
-                    logger.log(Level.WARN, "Producer closing - caught exception: " + e);
-                } catch (final Exception e) {
-                    logger.log(Level.ERROR, "Sleeping for 5s - Producer has caught : " + e, e);
-                    try {
-                        Thread.sleep(5000); // Longer sleep before retrying
-                    } catch (InterruptedException e1) {
-                        logger.log(Level.WARN, "Producer closing - caught exception: " + e);
-                    }
+                         logger.log(Level.INFO, "Message produced, offset: " + recordMetadata.offset());                         
+                     } catch (final InterruptedException e) {
+                         logger.log(Level.WARN, "Producer closing - caught exception: " + e);
+                     } catch (final Exception e) {
+                         logger.log(Level.ERROR, "Sleeping for 5s - Producer has caught : " + e, e);
+                         try {
+                             Thread.sleep(5000); // Longer sleep before retrying
+                         } catch (InterruptedException e1) {
+                             logger.log(Level.WARN, "Producer closing - caught exception: " + e);
+                         }
+                     } 
                 }
+                // Short sleep for flow control in this sample app
+                // to make the output easily understandable
+                Thread.sleep(2000); 
             }
-        } finally {
+        } catch (Exception e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		} finally {
             kafkaProducer.close(5000, TimeUnit.MILLISECONDS);
             logger.log(Level.INFO, ProducerRunnable.class.toString() + " has shut down.");
         }

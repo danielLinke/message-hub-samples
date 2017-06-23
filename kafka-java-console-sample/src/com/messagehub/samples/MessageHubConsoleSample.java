@@ -39,6 +39,7 @@ import org.apache.log4j.Logger;
 import com.messagehub.samples.bluemix.BluemixEnvironment;
 import com.messagehub.samples.bluemix.MessageHubCredentials;
 import com.messagehub.samples.rest.RESTAdmin;
+import com.satori.rtm.model.AnyJson;
 
 /**
  * Console-based sample interacting with Message Hub, authenticating with SASL/PLAIN over an SSL connection.
@@ -61,6 +62,9 @@ public class MessageHubConsoleSample {
     private static ProducerRunnable producerRunnable = null;
     private static String resourceDir;
 
+    //Satori messages
+ 	public static Iterable<AnyJson> messages;
+      
     //add shutdown hooks (intercept CTRL-C etc.)
     static {
         Runtime.getRuntime().addShutdownHook(new Thread() {
