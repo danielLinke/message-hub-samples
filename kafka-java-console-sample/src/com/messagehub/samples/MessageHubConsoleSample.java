@@ -22,6 +22,7 @@ package com.messagehub.samples;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +31,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -50,13 +52,11 @@ public class MessageHubConsoleSample {
     private static final String JAAS_CONFIG_PROPERTY = "java.security.auth.login.config";
     private static final String APP_NAME = "kafka-java-console-sample-2.0";
     private static final String DEFAULT_TOPIC_NAME = "kafka-java-console-sample-topic";
-    private static final String DEFAULT_JSON_URL = "https://gbfs.citibikenyc.com/gbfs/en/station_information.json";
     private static final String ARG_CONSUMER = "-consumer";
     private static final String ARG_PRODUCER_ = "-producer";
-    private static final String JSON_URL = "-json";
     private static final String ARG_TOPIC = "-topic";
-    private static final Logger logger = Logger.getLogger(MessageHubConsoleSample.class);
-
+    private static final Logger logger = Logger.getLogger(MessageHubConsoleSample.class);    
+       
     private static Thread consumerThread = null;
     private static ConsumerRunnable consumerRunnable = null;
     private static Thread producerThread = null;
@@ -118,8 +118,17 @@ public class MessageHubConsoleSample {
             boolean runConsumer = true;
             boolean runProducer = true;
             String topicName = DEFAULT_TOPIC_NAME;
-            String jsonURL = DEFAULT_JSON_URL;
-
+           
+            Properties sourceProperties = new Properties();
+            sourceProperties.load(new FileReader(new File("resources/source.properties")));   		   		
+            
+            Map<String, String> jsonSources = new HashMap<String, String>();
+            jsonSources.put(TopicsConst.SYSTEM_INFORMATION, sourceProperties.getProperty(TopicsConst.SYSTEM_INFORMATION));
+            jsonSources.put(TopicsConst.STATION_INFORMATION, sourceProperties.getProperty(TopicsConst.STATION_INFORMATION));
+            jsonSources.put(TopicsConst.SYSTEM_REGIONS, sourceProperties.getProperty(TopicsConst.SYSTEM_REGIONS));
+            jsonSources.put(TopicsConst.SYSTEM_ALERTS, sourceProperties.getProperty(TopicsConst.SYSTEM_ALERTS));
+            jsonSources.put(TopicsConst.STATION_STATUS, sourceProperties.getProperty(TopicsConst.STATION_STATUS));
+           
             // Check environment: Bluemix vs Local, to obtain configuration parameters
             if (isRunningInBluemix) {
 
@@ -156,7 +165,6 @@ public class MessageHubConsoleSample {
                         final ArgumentParser argParser = ArgumentParser.builder()
                                 .flag(ARG_CONSUMER)
                                 .flag(ARG_PRODUCER_)
-                                .option(JSON_URL)
                                 .option(ARG_TOPIC)
                                 .build();
                         final Map<String, String> parsedArgs =
@@ -166,9 +174,6 @@ public class MessageHubConsoleSample {
                         }
                         if (parsedArgs.containsKey(ARG_PRODUCER_) && !parsedArgs.containsKey(ARG_CONSUMER)) {
                             runConsumer = false;
-                        }
-                        if (parsedArgs.containsKey(JSON_URL)) {
-                            jsonURL = parsedArgs.get(JSON_URL);
                         }
                         if (parsedArgs.containsKey(ARG_TOPIC)) {
                             topicName = parsedArgs.get(ARG_TOPIC);
@@ -190,9 +195,12 @@ public class MessageHubConsoleSample {
             //If the topic already exists, creation will be a no-op
             try {
                 logger.log(Level.INFO, "Creating the topic " + topicName);
-                String restResponse = RESTAdmin.createTopic(adminRestURL, apiKey, topicName);
-                logger.log(Level.INFO, "Admin REST response :" +restResponse);
-
+                
+                for(String key : jsonSources.keySet()){
+                	String restResponse = RESTAdmin.createTopic(adminRestURL, apiKey, key);
+                    logger.log(Level.INFO, "Admin REST response :" + restResponse);
+                }
+                               
                 String topics = RESTAdmin.listTopics(adminRestURL, apiKey);
                 logger.log(Level.INFO, "Admin REST Listing Topics: " + topics);
             } catch (Exception e) {
@@ -210,7 +218,7 @@ public class MessageHubConsoleSample {
 
             if (runProducer) {
                 Properties producerProperties = getClientConfiguration(clientProperties, "producer.properties");
-                producerRunnable = new ProducerRunnable(producerProperties, topicName, jsonURL);
+                producerRunnable = new ProducerRunnable(producerProperties, jsonSources);
                 producerThread = new Thread(producerRunnable, "Producer Thread");
                 producerThread.start();
             }
